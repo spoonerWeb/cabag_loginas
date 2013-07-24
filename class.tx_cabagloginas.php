@@ -72,7 +72,7 @@ class tx_cabagloginas implements backend_toolbarItem {
 		if (count($this->users)) {
 			if (count($this->users) == 1) {
 				$title .= ' ' . $this->formatLinkText($this->users[0], $defLinkText);
-				$toolbarMenu[] = $this->getLoginAsIconInTable($this->users[0]['uid'], $title);
+				$toolbarMenu[] = $this->getLoginAsIconInTable($this->users[0], $title);
 			} else {
 				$toolbarMenu[] = '<a href="#" class="toolbar-item"><img' . t3lib_iconWorks::skinImg($this->backPath, 'gfx/su_back.gif', 'width="16" height="16"') . ' title="' . $title . '" alt="' . $title . '" /></a>';
 
@@ -80,7 +80,7 @@ class tx_cabagloginas implements backend_toolbarItem {
 
 				foreach ($this->users as $user) {
 					$linktext = $this->formatLinkText($user, $defLinkText);
-					$link = $this->getHREF($user['uid']);
+					$link = $this->getHREF($user);
 					$toolbarMenu[] = '<li><a href="' . htmlspecialchars($link) . '" target="_blank"><img' . t3lib_iconWorks::skinImg($this->backPath, 'gfx/i/fe_users.gif', 'width="16" height="16"') . ' title="' . $title . '" alt="' . $title . '" /> ' . $linktext . '</a></li>';
 				}
 
@@ -107,27 +107,31 @@ class tx_cabagloginas implements backend_toolbarItem {
 		}
 	}
 
-	function getHREF($userid) {
-
-		$timeout = time() + 3600;
+	function getHREF($user) {
+		$parameterArray = array();
+		$parameterArray['userid'] = (string) $user['uid'];
+		$parameterArray['timeout'] = (string) $timeout = time() + 3600;
+		if (rtrim(t3lib_div::getIndpEnv('TYPO3_SITE_URL'), '/') !== ($domain = $this->getRedirectForCurrentDomain($user['pid']))) {
+			$parameterArray['redirecturl'] = rawurlencode($domain);
+		}
 		$ses_id = $GLOBALS['BE_USER']->user['ses_id'];
-		$verification = md5($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] . $userid . $timeout . $ses_id);
-		$link = $this->getRedirectForCurrentDomain('?tx_cabagloginas[timeout]=' . $timeout . '&tx_cabagloginas[userid]=' . $userid . '&tx_cabagloginas[verification]=' . $verification);
+		$parameterArray['verification'] = md5($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] . $ses_id . serialize($parameterArray));
+		$link = t3lib_div::getIndpEnv('TYPO3_SITE_URL') . '?' . t3lib_div::implodeArrayForUrl('tx_cabagloginas', $parameterArray);
 
 		return $link;
 	}
 
 	function getLink($data) {
 		$label = $data['label'] . ' ' . $data['row']['username'];
-		$link = $this->getHREF($data['row']['uid']);
+		$link = $this->getHREF($data['row']);
 		$content = '<a href="' . $link . '" target="_blank" style="text-decoration:underline;">' . $label . '</a>';
 
 		return $content;
 	}
 
-	function getLoginAsIconInTable($userid, $title = '') {
+	function getLoginAsIconInTable($user, $title = '') {
 		$label = '<img' . t3lib_iconWorks::skinImg($this->backPath, 'gfx/su_back.gif', 'width="16" height="16"') . ' title="' . $title . '" alt="' . $title . '" />';
-		$link = $this->getHREF($userid);
+		$link = $this->getHREF($user);
 		$content = '<a class="toolbar-item" href="' . $link . '" target="_blank">' . $label . '</a>';
 
 		return $content;
@@ -136,45 +140,36 @@ class tx_cabagloginas implements backend_toolbarItem {
 	/**
 	 * Finds the redirect link for the current domain.
 	 *
-	 * @param string $additionalParameters Any additional parameters (with leading ?)
+	 * @param integer $pid Page id the user is stored in
 	 *
 	 * @return string '../' if nothing was found, the link in the form of http://www.domain.tld/link/page.html otherwise.
 	 */
-	function getRedirectForCurrentDomain($additionalParameters = '') {
+	function getRedirectForCurrentDomain($pid) {
 		$extConf = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['cabag_loginas']);
+		$domain = t3lib_BEfunc::getViewDomain($pid);
+		$domainArray = parse_url($domain);
 
 		if (empty($extConf['enableDomainBasedRedirect'])) {
-			return '../' . $additionalParameters;
+			return $domain;
 		}
 
-		$domains = $GLOBALS['TYPO3_DB']->exec_SELECTgetRows(
+		$rowArray = $GLOBALS['TYPO3_DB']->exec_SELECTgetRows(
 			'domainName, tx_cabagfileexplorer_redirect_to',
 			'sys_domain',
-			'hidden = 0 AND domainName = ' . $GLOBALS['TYPO3_DB']->fullQuoteStr(t3lib_div::getIndpEnv('HTTP_HOST'), 'sys_domain'),
+			'hidden = 0 AND domainName = ' . $GLOBALS['TYPO3_DB']->fullQuoteStr($domainArray['host'], 'sys_domain'),
 			'',
 			'',
 			1
 		);
 
-		if (count($domains) === 0) {
-			return '../' . $additionalParameters;
+		if (count($rowArray) === 0 || (trim($rowArray[0]['tx_cabagfileexplorer_redirect_to'])) === '') {
+			return $domain;
 		}
 
-		$redirect = trim($domains[0]['tx_cabagfileexplorer_redirect_to']);
+		$domain = 'http' . (t3lib_div::getIndpEnv('TYPO3_SSL') ? 's' : '') . '://' . $rowArray[0]['domainName'] . '/' .
+			ltrim($rowArray[0]['tx_cabagfileexplorer_redirect_to'], '/');
 
-		if (empty($redirect)) {
-			return '../' . $additionalParameters;
-		}
-
-		$redirect = preg_replace('#^/+#', '', $redirect);
-
-		$protocol = 'http' . (t3lib_div::getIndpEnv('TYPO3_SSL') ? 's' : '') . '://';
-
-		$glue = preg_match('/\?/', $redirect) ? '&' : '?';
-
-		$additionalParameters = empty($additionalParameters) ? '' : $glue . preg_replace('/^\?/', '', $additionalParameters);
-
-		return $protocol . $domains[0]['domainName'] . '/' . $redirect . $additionalParameters;
+		return $domain;
 	}
 }
 

@@ -48,7 +48,7 @@ class tx_cabagloginas_makecontrolhook implements localRecordList_actionsHook {
 				}
 			}
 			$cells = $tempcells;
-			$loginas = $this->loginAsObj->getLoginAsIconInTable($row['uid']);
+			$loginas = $this->loginAsObj->getLoginAsIconInTable($row);
 			$cells['loginas'] = $loginas;
 		}
 

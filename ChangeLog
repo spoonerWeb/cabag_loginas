@@ -1,3 +1,7 @@
+2013-07-24 Nicole Cordes <typo3@cordes.co>
+	* version 1.1.9
+	* fixed respecting of domain records for multi domain systems
+
 2013-07-23 Nicole Cordes <typo3@cordes.co>
 	* version 1.1.8
 	* format code according to coding guidelines

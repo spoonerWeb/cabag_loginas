@@ -4,7 +4,12 @@ if (!defined('TYPO3_MODE')) {
 }
 
 //$TYPO3_CONF_VARS['SC_OPTIONS']['GLOBAL']['recStatInfoHooks'][] = t3lib_extMgm::extPath($_EXTKEY).'class.tx_cabagloginas.php:tx_cabagloginas->getLoginAsIconInTable';
-$TYPO3_CONF_VARS['SC_OPTIONS']['typo3/class.db_list_extra.inc']['actions'][] = t3lib_extMgm::extPath($_EXTKEY) . 'class.tx_cabagloginas_makecontrolhook.php:tx_cabagloginas_makecontrolhook';
+$TYPO3_CONF_VARS['SC_OPTIONS']['typo3/class.db_list_extra.inc']['actions'][] = t3lib_extMgm::extPath($_EXTKEY) .
+	'class.tx_cabagloginas_makecontrolhook.php:tx_cabagloginas_makecontrolhook';
+
+// Hook to check for redirection
+$TYPO3_CONF_VARS['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['postUserLookUp'][] =
+	'EXT:cabag_loginas/class.tx_cabagloginas_userauth.php:tx_cabagloginas_userauth->postUserLookUp';
 
 $TYPO3_CONF_VARS['SVCONF']['auth']['setup']['FE_alwaysFetchUser'] = 1;
 
