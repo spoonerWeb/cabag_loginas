@@ -111,8 +111,22 @@ class tx_cabagloginas implements backend_toolbarItem {
 		$parameterArray = array();
 		$parameterArray['userid'] = (string) $user['uid'];
 		$parameterArray['timeout'] = (string) $timeout = time() + 3600;
-		if (rtrim(t3lib_div::getIndpEnv('TYPO3_SITE_URL'), '/') !== ($domain = $this->getRedirectForCurrentDomain($user['pid']))) {
-			$parameterArray['redirecturl'] = rawurlencode($domain);
+		// Check user settings for any redirect page
+		if ($user['felogin_redirectPid']) {
+			$parameterArray['redirecturl'] = $this->getRedirectUrl($user['felogin_redirectPid']);
+		} else {
+			// Check group settings for any redirect page
+			$userGroup = $GLOBALS['TYPO3_DB']->exec_SELECTgetSingleRow(
+				'fe_groups.felogin_redirectPid',
+				'fe_users, fe_groups',
+				'fe_groups.felogin_redirectPid != "" AND fe_groups.uid IN (fe_users.usergroup) AND fe_users.uid = ' . $user['uid']
+			);
+			if (is_array($userGroup) && !empty($userGroup['felogin_redirectPid'])) {
+				$parameterArray['redirecturl'] = $this->getRedirectUrl($userGroup['felogin_redirectPid']);
+			} elseif (rtrim(t3lib_div::getIndpEnv('TYPO3_SITE_URL'), '/') !== ($domain = $this->getRedirectForCurrentDomain($user['pid']))) {
+				// Any manual redirection defined in sys_domain record
+				$parameterArray['redirecturl'] = rawurlencode($domain);
+			}
 		}
 		$ses_id = $GLOBALS['BE_USER']->user['ses_id'];
 		$parameterArray['verification'] = md5($GLOBALS['TYPO3_CONF_VARS']['SYS']['encryptionKey'] . $ses_id . serialize($parameterArray));
@@ -170,6 +184,15 @@ class tx_cabagloginas implements backend_toolbarItem {
 			ltrim($rowArray[0]['tx_cabagfileexplorer_redirect_to'], '/');
 
 		return $domain;
+	}
+
+	/**
+	 * @param integer $pageId
+	 *
+	 * @return string
+	 */
+	protected function getRedirectUrl($pageId) {
+		return rawurlencode(t3lib_BEfunc::getViewDomain($pageId) . '/index.php?id=' . $pageId);
 	}
 }
 
