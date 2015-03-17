@@ -73,5 +73,3 @@ class tx_cabagloginas_sv1 extends tx_sv_authbase {
 if (defined("TYPO3_MODE") && $TYPO3_CONF_VARS[TYPO3_MODE]["XCLASS"]["ext/cabag_loginas/sv1/class.tx_cabagloginas_sv1.php"]) {
 	include_once($TYPO3_CONF_VARS[TYPO3_MODE]["XCLASS"]["ext/cabag_loginas/sv1/class.tx_cabagloginas_sv1.php"]);
 }
-
-?>
